@@ -1,9 +1,264 @@
-# All new types are declared using = Type ...
+# ═══════════════════════════════════════════════════════════
+#  std.fpr  —  FP-RISC standard library  (fpr-official@std.v1)
+# ═══════════════════════════════════════════════════════════
+
+
+# ── primitive re-exports ──────────────────────────────────
+# These are built-in to the runtime; std just names them for
+# convenient qualified import.
+
+Unit  = Type Unit.
+Bool  = Type (True | False).
+Int   = Type Int.        # arbitrary-precision integer
+Float = Type Float.      # IEEE-754 double
+Num   = Type (Int | Float).
+Char  = Type Char.
+Str   = Type Str.        # UTF-8 string
+Bytes = Type Bytes.      # raw byte sequence
+Path  = Type Str.        # filesystem path alias
+
+
+# ── Maybe ─────────────────────────────────────────────────
+Maybe a = Type (Nothing | Just a).
+
+just    x = Maybe.Just x.
+nothing   = Maybe.Nothing.
+
+is_just  (Maybe.Just _)  = True.
+is_just  Maybe.Nothing   = False.
+is_nothing m             = not (is_just m).
+
+from_maybe _ (Maybe.Just x)  = x.
+from_maybe d Maybe.Nothing   = d.
+
+maybe f _ (Maybe.Just x) = f x.
+maybe _ d Maybe.Nothing  = d.
+
+map_maybe f (Maybe.Just x) = Maybe.Just (f x).
+map_maybe _ Maybe.Nothing  = Maybe.Nothing.
+
+bind_maybe f (Maybe.Just x) = f x.
+bind_maybe _ Maybe.Nothing  = Maybe.Nothing.
+
+or_else (Maybe.Just x) _ = Maybe.Just x.
+or_else Maybe.Nothing  m = m.
+
+
+# ── Result ────────────────────────────────────────────────
+Result e a = Type (Err e | Ok a).
+
+ok  x = Result.Ok  x.
+err e = Result.Err e.
+
+is_ok  (Result.Ok  _) = True.
+is_ok  (Result.Err _) = False.
+is_err r              = not (is_ok r).
+
+from_ok  _ (Result.Ok  x) = x.
+from_ok  d (Result.Err _) = d.
+from_err _ (Result.Err e) = e.
+from_err d (Result.Ok  _) = d.
+
+map_result f (Result.Ok  x) = Result.Ok (f x).
+map_result _ (Result.Err e) = Result.Err e.
+
+bind_result f (Result.Ok  x) = f x.
+bind_result _ (Result.Err e) = Result.Err e.
+
+map_err f (Result.Err e) = Result.Err (f e).
+map_err _ (Result.Ok  x) = Result.Ok x.
+
+
+# ── List ──────────────────────────────────────────────────
+# Runtime primitives: cons, head, tail, nil, is_nil, length, append
+
+map f xs     | is_nil xs = nil.
+map f xs     = cons (f (head xs)) (map f (tail xs)).
+
+filter pred xs | is_nil xs              = nil.
+filter pred xs | pred (head xs)         = cons (head xs) (filter pred (tail xs)).
+filter pred xs                          = filter pred (tail xs).
+
+fold f acc xs | is_nil xs = acc.
+fold f acc xs             = fold f (f acc (head xs)) (tail xs).
+
+fold_right f acc xs | is_nil xs = acc.
+fold_right f acc xs             = f (head xs) (fold_right f acc (tail xs)).
+
+any pred xs | is_nil xs        = False.
+any pred xs | pred (head xs)   = True.
+any pred xs                    = any pred (tail xs).
+
+all pred xs | is_nil xs          = True.
+all pred xs | not (pred (head xs)) = False.
+all pred xs                      = all pred (tail xs).
+
+find pred xs | is_nil xs          = Maybe.Nothing.
+find pred xs | pred (head xs)     = Maybe.Just (head xs).
+find pred xs                      = find pred (tail xs).
+
+zip xs ys | is_nil xs = nil.
+zip xs ys | is_nil ys = nil.
+zip xs ys             = cons (head xs, head ys) (zip (tail xs) (tail ys)).
+
+zip_with f xs ys | is_nil xs = nil.
+zip_with f xs ys | is_nil ys = nil.
+zip_with f xs ys             = cons (f (head xs) (head ys)) (zip_with f (tail xs) (tail ys)).
+
+take 0 _  = nil.
+take _ xs | is_nil xs = nil.
+take n xs             = cons (head xs) (take ((-) n 1) (tail xs)).
+
+drop 0 xs = xs.
+drop _ xs | is_nil xs = nil.
+drop n xs             = drop ((-) n 1) (tail xs).
+
+reverse xs = fold (fun acc x -> cons x acc) nil xs.
+
+concat xss = fold append nil xss.
+
+flat_map f xs = concat (map f xs).
+
+index xs 0 = Maybe.Just (head xs).
+index xs _ | is_nil xs = Maybe.Nothing.
+index xs n             = index (tail xs) ((-) n 1).
+
+last xs | is_nil (tail xs) = Maybe.Just (head xs).
+last xs | is_nil xs        = Maybe.Nothing.
+last xs                    = last (tail xs).
+
+init_list xs | is_nil (tail xs) = nil.
+init_list xs | is_nil xs        = nil.
+init_list xs                    = cons (head xs) (init_list (tail xs)).
+
+sum  xs = fold (+) 0 xs.
+product xs = fold (*) 1 xs.
+
+maximum xs = fold (fun a b -> if a > b then a else b) (head xs) (tail xs).
+minimum xs = fold (fun a b -> if a < b then a else b) (head xs) (tail xs).
+
+range lo hi | lo >= hi = nil.
+range lo hi            = cons lo (range ((+) lo 1) hi).
+
+repeat n x | n <= 0 = nil.
+repeat n x          = cons x (repeat ((-) n 1) x).
+
+enumerate xs = zip (range 0 (length xs)) xs.
+
+# partition : (a -> Bool) -> List a -> (List a, List a)
+partition pred xs =
+  yes <- filter pred xs,
+  no  <- filter (fun x -> not (pred x)) xs,
+  (yes, no).
+
+unzip pairs =
+  as_ <- map fst pairs,
+  bs  <- map snd pairs,
+  (as_, bs).
+
+flat xs = flat_map (fun x -> x) xs.
+
+sort_by key xs | is_nil xs = nil.
+sort_by key xs =
+  pivot  <- head xs,
+  rest   <- tail xs,
+  less   <- filter (fun x -> key x < key pivot) rest,
+  greater <- filter (fun x -> key x >= key pivot) rest,
+  append (sort_by key less) (cons pivot (sort_by key greater)).
+
+sort xs = sort_by (fun x -> x) xs.
+
+
+# ── Tuple helpers ─────────────────────────────────────────
+fst (a, _) = a.
+snd (_, b) = b.
+swap (a, b) = (b, a).
+both f (a, b) = (f a, f b).
+map_fst f (a, b) = (f a, b).
+map_snd f (a, b) = (a, f b).
+
+
+# ── Bool / logic ──────────────────────────────────────────
+not True  = False.
+not False = True.
+
+and True  True  = True.
+and _     _     = False.
+
+or False False = False.
+or _    _      = True.
+
+xor True  False = True.
+xor False True  = True.
+xor _     _     = False.
+
+bool_to_int True  = 1.
+bool_to_int False = 0.
+
+
+# ── Numeric utilities ─────────────────────────────────────
+abs x | x < 0  = negate x.
+abs x           = x.
+
+clamp lo hi x = max lo (min hi x).
+clamp_0 x     = max 0 x.
+
+sign x | x > 0  =  1.
+sign x | x < 0  = -1.
+sign _           =  0.
+
+lerp a b t = (+) a ((*) ((-) b a) t).
+
+floor_div a b = floor (div a b).
+
+mod a b =
+  q <- floor_div a b,
+  (-) a ((*) q b).
+
+even x = (==) (mod x 2) 0.
+odd  x = not (even x).
+
+# integer power
+pow_int base 0   = 1.
+pow_int base exp = (*) base (pow_int base ((-) exp 1)).
+
+to_float x = float_of_int x.   # runtime cast
+to_int   x = int_of_float x.   # truncates
+
+
+# ── String utilities ──────────────────────────────────────
+# Runtime primitives: str_concat, str_length, str_chars,
+#   str_slice, str_split, str_trim, str_to_upper, str_to_lower,
+#   str_contains, str_starts_with, str_ends_with, int_to_str,
+#   float_to_str, str_to_int, str_to_float.
+
+str_join sep xs | is_nil xs = "".
+str_join sep xs =
+  fold (fun acc s -> str_concat acc (str_concat sep s)) (head xs) (tail xs).
+
+str_lines   s = str_split "\n" s.
+str_words   s = str_split " "  s.
+str_is_empty s = (==) (str_length s) 0.
+
+show_int   = int_to_str.
+show_float = float_to_str.
+show_bool True  = "true".
+show_bool False = "false".
+
+
+# ── I/O ───────────────────────────────────────────────────
+print   = std_print.    # runtime: String -> Unit (stdout)
+println = std_println.  # runtime: String -> Unit (stdout + newline)
+eprint  = std_eprint.   # runtime: String -> Unit (stderr)
+
+read_line  = std_read_line.   # -> Str
+read_int   = std_read_int.    # -> Int
+read_float = std_read_float.  # -> Float
+
+
+# ── File I/O ──────────────────────────────────────────────
 FileState = Type (Closed | Open | EOF).
 
-# driver protocol — external impl satisfies this sig
-# v1
-# The Type keyword does most of the work, thats why : is not used in the body at all
 FileSig = Type {
   open  = Path -> (FileHandle, FileState.Open),
   read  = (FileHandle, FileState.Open) -> (Bytes, FileState),
@@ -12,4 +267,175 @@ FileSig = Type {
   close = (FileHandle, FileState.Open) -> (Unit, FileState.Closed)
 }.
 
+# Convenience wrappers backed by the FileSig driver
+read_file path =
+  driver    <- use "fpr-official@fs.v1",
+  (fh, _)  <- driver.open path,
+  (bytes, _) <- driver.read fh,
+  _          <- driver.close fh,
+  bytes.
+
+write_file path bytes =
+  driver  <- use "fpr-official@fs.v1",
+  (fh, _) <- driver.open path,
+  _       <- driver.write fh bytes,
+  driver.close fh.
+
+
+# ── Cmd / Sub (MVU platform) ──────────────────────────────
+# Cmd wraps a side-effecting description that produces a Msg.
+# The runtime interprets Cmds; user code only constructs them.
+
+Cmd msg = Type {
+  tag     = Str,
+  payload = Any
+}.
+
+# Cmd constructors
+Cmd.none          = {tag = "none",       payload = unit}.
+Cmd.load_level lv = {tag = "load_level", payload = lv}.
+Cmd.http_get  url = {tag = "http_get",   payload = url}.
+Cmd.delay ms  msg = {tag = "delay",      payload = (ms, msg)}.
+Cmd.log  msg      = {tag = "log",        payload = msg}.
+Cmd.exit  code    = {tag = "exit",       payload = code}.
+Cmd.batch cmds    = {tag = "batch",      payload = cmds}.
+
+# Sub wraps a subscription that produces Msgs from external events.
+Sub msg = Type {
+  tag     = Str,
+  payload = Any
+}.
+
+Sub.none          = {tag = "none",     payload = unit}.
+Sub.on_frame f    = {tag = "on_frame", payload = f}.    # f : List Key -> Msg
+Sub.on_key    f   = {tag = "on_key",   payload = f}.    # f : KeyEvent -> Msg
+Sub.on_resize f   = {tag = "on_resize", payload = f}.   # f : (Int,Int) -> Msg
+Sub.on_timer ms f = {tag = "timer",    payload = (ms, f)}.
+Sub.batch subs    = {tag = "batch",    payload = subs}.
+
+# MVU entry point provided by runtime
+# mvu : (Model, Cmd msg) -> (Model -> msg -> (Model, Cmd msg))
+#         -> (Model -> Scene)
+#         -> (Model -> Sub msg)
+#         -> Unit
+mvu = std_mvu.   # runtime built-in
+
+
+# ── Function combinators ──────────────────────────────────
+id      x   = x.
+const   x _ = x.
+flip    f a b = f b a.
+compose f g x = f (g x).   # (f . g) x
+apply   f x   = f x.       # f $ x
+
+on f g x y = f (g x) (g y).   # e.g. compare `on` key
+
+# iterate f n x  = f^n(x)
+iterate f 0 x = x.
+iterate f n x = iterate f ((-) n 1) (f x).
+
+until pred f x | pred x = x.
+until pred f x          = until pred f (f x).
+
+
+# ── Tree ──────────────────────────────────────────────────
+Tree a = Type (Leaf | Node a (Tree a) (Tree a)).
+
+tree_insert cmp x Leaf                = Node x Leaf Leaf.
+tree_insert cmp x (Node v l r)
+  | cmp x v < 0 = Node v (tree_insert cmp x l) r.
+  | cmp x v > 0 = Node v l (tree_insert cmp x r).
+  | otherwise   = Node v l r.
+
+tree_member cmp x Leaf              = False.
+tree_member cmp x (Node v l r)
+  | cmp x v < 0 = tree_member cmp x l.
+  | cmp x v > 0 = tree_member cmp x r.
+  | otherwise   = True.
+
+tree_to_list Leaf              = nil.
+tree_to_list (Node v l r)      = append (tree_to_list l) (cons v (tree_to_list r)).
+
+list_to_tree cmp xs = fold (fun t x -> tree_insert cmp x t) Leaf xs.
+
 iso Tree List = (tree_to_list, list_to_tree).
+
+
+# ── Dict (BST-backed ordered map) ─────────────────────────
+Dict k v = Type (Tree (k, v)).
+
+dict_empty        = Leaf.
+dict_insert k v d = tree_insert (on compare fst) (k, v) d.
+dict_lookup k d   = map_maybe snd (find (fun (k2, _) -> k == k2) (tree_to_list d)).
+dict_delete k d   = list_to_tree (on compare fst) (filter (fun (k2, _) -> k2 != k) (tree_to_list d)).
+dict_keys   d     = map fst (tree_to_list d).
+dict_values d     = map snd (tree_to_list d).
+dict_to_list d    = tree_to_list d.
+dict_from_list xs = list_to_tree (on compare fst) xs.
+dict_member k d   = is_just (dict_lookup k d).
+dict_size d       = length (tree_to_list d).
+
+
+# ── Set (BST-backed) ──────────────────────────────────────
+Set a = Type (Tree a).
+
+set_empty        = Leaf.
+set_insert x s   = tree_insert compare x s.
+set_member x s   = tree_member compare x s.
+set_to_list s    = tree_to_list s.
+set_from_list xs = list_to_tree compare xs.
+set_union s1 s2  = fold (fun s x -> set_insert x s) s1 (set_to_list s2).
+set_inter s1 s2  = list_to_tree compare (filter (fun x -> set_member x s2) (set_to_list s1)).
+set_diff  s1 s2  = list_to_tree compare (filter (fun x -> not (set_member x s2)) (set_to_list s1)).
+
+
+# ── Queue (pair-of-lists) ─────────────────────────────────
+Queue a = Type {front = List a, back = List a}.
+
+queue_empty       = {front = nil, back = nil}.
+queue_push x q    = {front = q.front, back = cons x q.back}.
+queue_norm q | is_nil q.front = {front = reverse q.back, back = nil}.
+queue_norm q                  = q.
+queue_pop q | is_nil q.front, is_nil q.back = Maybe.Nothing.
+queue_pop q =
+  q2 <- queue_norm q,
+  Maybe.Just (head q2.front, {front = tail q2.front, back = q2.back}).
+queue_is_empty q = is_nil q.front, is_nil q.back.
+
+
+# ── Random (pure LCG) ─────────────────────────────────────
+# seed -> (value, next_seed)
+rand_next seed =
+  a <- 1664525,
+  c <- 1013904223,
+  m <- pow_int 2 32,
+  mod ((+) ((*) a seed) c) m.
+
+rand_float seed =
+  next <- rand_next seed,
+  (div (to_float next) (to_float (pow_int 2 32)), next).
+
+rand_int lo hi seed =
+  (f, next) <- rand_float seed,
+  v <- to_int ((+) (to_float lo) ((*) f (to_float ((-) hi lo)))),
+  (v, next).
+
+rand_bool seed =
+  (v, next) <- rand_int 0 2 seed,
+  (even v, next).
+
+
+# ── Debug ─────────────────────────────────────────────────
+# trace : Str -> a -> a   (prints then passes value through)
+trace label x =
+  _ <- print (str_concat label (str_concat " " (show x))),
+  x.
+
+# show is a runtime polymorphic print — falls back to runtime if not overridden
+show = std_show.
+
+assert True  _ = unit.
+assert False msg = error (str_concat "Assertion failed: " msg).
+
+todo msg = error (str_concat "TODO: " msg).
+unreachable msg = error (str_concat "Unreachable: " msg).
