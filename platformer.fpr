@@ -5,152 +5,155 @@ vec    = use "fpr-official@vec2.v1".
 input  = use "fpr-official@input.v1".
 render = use "fpr-official@render.v1".
 
+print = std.print.
+
 # ── types ─────────────────────────────────────────────────
-Vec2      : record (x Float | y Float).
-PlayerState : enum (Idle | Running | Jumping | Falling | Dead).
-TileKind  : enum (Solid | Platform | Spike | Empty).
+Vec2  = Type $ Tuple (Num, Num). # Num is the default type encompassing every numeric type
+PlayerState : Type (Idle | Running | Jumping | Falling | Dead).
+TileKind  : Type (Solid | Platform | Spike | Empty).
 
-Player : record (
-  pos      Vec2
-| vel      Vec2
-| state    PlayerState
-| health   Int
-| facing   Int          # 1 or -1
-).
+# {...} is sugar for Record (...)
 
-Tile   : record (kind TileKind | pos Vec2).
-Level  : record (tiles (List Tile) | width Int | height Int).
+Player = Type {
+  pos = Vec2,
+  vel = Vec2,
+  state = PlayerState,
+  health = Num,
+  # 1 or -1
+  facing = Num
+}.
 
-GameState : enum (Playing | Paused | GameOver | Win).
+Tile = Type {kind = TileKind, pos = Vec2}.
+Level = Type {tiles = List Tile, width = Int, height = Int}.
 
-Game : record (
-  player    Player
-| level     Level
-| camera    Vec2
-| state     GameState
-| tick      Int
-).
+GameState : Type (Playing | Paused | GameOver | Win).
+
+Game = Type {
+  player = Player,
+  level  = Level,
+  camera = Vec2,
+  state  = GameState,
+  tick   = Int
+}.
 
 # ── input ─────────────────────────────────────────────────
+
+# all <- means in FP-RISC is local bind, does not mean monad
 read_input driver =
-  raw    = driver.poll,
-  parsed = map parse_key raw,
+  raw    <- driver.poll, # access driver poll
+  parsed <- map parse_key raw,
   parsed.
 
 # ── physics ───────────────────────────────────────────────
+
+# Numeric literals are just Num (Lit), auto constructed lifted to Num
+
 gravity      = 0.4.
 max_fall_vel = 8.0.
 move_speed   = 3.0.
 jump_vel     = -8.0.
 
-apply_gravity vel | vel.y < max_fall_vel =
-  ny = (+) vel.y gravity,
-  Vec2 vel.x ny.
+# A guard is basically check condition. No guard means no condition
+apply_gravity vel | vel.y < max_fall_vel = ny <- (+) vel.y gravity, Vec2 vel.x ny.
 apply_gravity vel = vel.
 
-apply_input vel keys | any (== Jump) keys, grounded vel =
-  Vec2 vel.x jump_vel.
-apply_input vel keys | any (== Left) keys =
-  Vec2 (negate move_speed) vel.y.
-apply_input vel keys | any (== Right) keys =
-  Vec2 move_speed vel.y.
+# Must use (op) for prefix form
+apply_input vel keys | any ((==) Jump) keys, grounded vel = Vec2 vel.x jump_vel.
+apply_input vel keys | any ((==) Left) keys = Vec2 (negate move_speed) vel.y.
+apply_input vel keys | any ((==) Right) keys = Vec2 move_speed vel.y.
 apply_input vel _ = vel.
 
 grounded vel = (==) vel.y 0.0.
 
-# resolve collisions against tile list
-# returns corrected (pos, vel)
+# resolve collisions against tile list. returns corrected (pos, vel)
 resolve_collision pos vel tiles =
-  candidates = filter (overlaps pos) tiles,
-  solid      = filter (is_solid) candidates,
-  spikes     = filter (is_spike) candidates,
-  hit_spike  = any is_spike spikes,
-  new_pos    = fold push_out pos solid,
-  new_vel    = correct_vel vel solid,
+  candidates <- filter (overlaps pos) tiles,
+  solid      <- filter (is_solid) candidates,
+  spikes     <- filter (is_spike) candidates,
+  hit_spike  <- any is_spike spikes,
+  new_pos    <- fold push_out pos solid,
+  new_vel    <- correct_vel vel solid,
   (new_pos, new_vel, hit_spike).
 
 # ── player update ──────────────────────────────────────────
 update_player player keys level =
-  vel1             = apply_input player.vel keys,
-  vel2             = apply_gravity vel1,
-  next_pos         = vec.add player.pos vel2,
-  (pos, vel, spike) = resolve_collision next_pos vel2 level.tiles,
-  health           = if spike then (-) player.health 1 else player.health,
-  next_state       = derive_state vel spike health,
-  facing           = derive_facing keys player.facing,
+  vel1              <- apply_input player.vel keys,
+  vel2              <- apply_gravity vel1,
+  next_pos          <- vec.add player.pos vel2,
+  (pos, vel, spike) <- resolve_collision next_pos vel2 level.tiles,
+  health            <- if spike then clamp_0 ((-) player.health 1) else player.health,
+  next_state        <- derive_state vel spike health,
+  facing            <- derive_facing keys player.facing,
   Player pos vel next_state health facing.
 
 derive_state vel spike health
-  | health <= 0        = Dead.
-  | spike              = Dead.
-  | vel.y < 0.0        = Jumping.
-  | vel.y > 0.0        = Falling.
-  | vel.x != 0.0       = Running.
-  |                      Idle.
+  | health <= 0        = PlayerState.Dead.
+  | spike              = PlayerState.Dead.
+  | vel.y < 0.0        = PlayerState.Jumping.
+  | vel.y > 0.0        = PlayerState.Falling.
+  | vel.x != 0.0       = PlayerState.Running.
+  | otherwise          = PlayerState.Idle.
 
-derive_facing keys _      | any (== Left)  keys = -1.
-derive_facing keys _      | any (== Right) keys =  1.
-derive_facing _    facing                        = facing.
+derive_facing keys _ | any ((==) Left)  keys = -1.
+derive_facing keys _ | any ((==) Right) keys = 1.
+derive_facing _ facing = facing.
 
 # ── camera ─────────────────────────────────────────────────
-update_camera camera player =
-  target = vec.sub player.pos (Vec2 160.0 120.0),
-  vec.lerp camera target 0.1.
+update_camera camera player = target <- vec.sub player.pos (Vec2 160.0 120.0), vec.lerp camera target 0.1.
 
 # ── game state ─────────────────────────────────────────────
-check_win player level =
-  overlaps player.pos level.goal.
+check_win player level = overlaps player.pos level.goal.
 
 update_game_state game
-  | game.player.state == Dead    = GameOver.
-  | check_win game.player game.level = Win.
-  |                                game.state.
+  | game.player.state == PlayerState.Dead = GameState.GameOver.
+  | check_win game.player game.level = GameState.Win.
+  | otherwise = game.state.
 
 # ── render ─────────────────────────────────────────────────
-render_tile camera driver tile | tile.kind == Empty = unit.
+render_tile camera driver tile | tile.kind == TileKind.Empty = unit.
 render_tile camera driver tile =
-  screen_pos = vec.sub tile.pos camera,
-  sprite     = tile_sprite tile.kind,
+  screen_pos <- vec.sub tile.pos camera,
+  sprite     <- tile_sprite tile.kind,
   driver.draw_sprite screen_pos sprite.
 
 render_player camera driver player =
-  screen_pos = vec.sub player.pos camera,
-  sprite     = player_sprite player.state player.facing,
+  screen_pos <- vec.sub player.pos camera,
+  sprite     <- player_sprite player.state player.facing,
   driver.draw_sprite screen_pos sprite.
 
 render_frame game driver =
-  _ = driver.clear,
-  _ = map (render_tile game.camera driver) game.level.tiles,
-  _ = render_player game.camera driver game.player,
+  _ <- driver.clear,
+  _ <- map (render_tile game.camera driver) game.level.tiles,
+  _ <- render_player game.camera driver game.player,
   driver.present.
 
 # ── main loop ──────────────────────────────────────────────
 tick game input_driver render_driver
-  | game.state == GameOver = game.
-  | game.state == Win      = game.
-  | game.state == Paused   =
-      keys      = read_input input_driver,
-      new_state = if any (== Pause) keys then Playing else Paused,
-      Game game.player game.level game.camera new_state (+ game.tick 1).
-  |
-      keys    = read_input input_driver,
-      player  = update_player game.player keys game.level,
-      camera  = update_camera game.camera player,
-      gstate  = update_game_state (Game player game.level camera game.state game.tick),
-      _       = render_frame game render_driver,
+  | game.state == GameState.GameOver = game.
+  | game.state == GameState.Win      = game.
+  | game.state == GameState.Paused   =
+      keys      <- read_input input_driver,
+      new_state <- if any ((==) Pause) keys then GameState.Playing else Paused,
+      Game game.player game.level game.camera new_state ((+) game.tick 1).
+  | otherwise =
+      keys    <- read_input input_driver,
+      player  <- update_player game.player keys game.level,
+      camera  <- update_camera game.camera player,
+      gstate  <- update_game_state (Game player game.level camera game.state game.tick),
+      _       <- render_frame game render_driver,
       Game player game.level camera gstate ((+) game.tick 1).
 
 main =
-  render_driver = use "fpr-official@sdl.v1",
-  input_driver  = use "fpr-official@input.v1",
-  level         = load_level "level01",
-  start_player  = Player (Vec2 32.0 32.0) (Vec2 0.0 0.0) Idle 3 1,
-  init_game     = Game start_player level (Vec2 0.0 0.0) Playing 0,
+  render_driver <- use "fpr-official@sdl.v1",
+  input_driver  <- use "fpr-official@input.v1",
+  level         <- load_level "level01",
+  start_player  <- Player (Vec2 32.0 32.0) (Vec2 0.0 0.0) PlayerState.Idle 3 1,
+  init_game     <- Game start_player level (Vec2 0.0 0.0) GameState.Playing 0,
   loop init_game input_driver render_driver.
 
 loop game input_driver render_driver
-  | game.state == GameOver = std.print "Game Over".
-  | game.state == Win      = std.print "You Win".
-  |
-      next = tick game input_driver render_driver,
+  | game.state == GameState.GameOver = print "Game Over".
+  | game.state == GameState.Win      = print "You Win".
+  | otherwise =
+      next <- tick game input_driver render_driver,
       loop next input_driver render_driver.

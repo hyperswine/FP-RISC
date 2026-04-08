@@ -1,0 +1,26 @@
+# ── modules ──────────────────────────────────────────────
+std    = use "fpr-official@std.v1".
+math   = use "fpr-official@math.v1".
+vec    = use "fpr-official@vec2.v1".
+input  = use "fpr-official@input.v1".
+render = use "fpr-official@render.v1".
+
+Vec2 = vec.Vec2.
+
+PlayerState = Type (Idle | Running | Jumping | Falling | Dead).
+TileKind  : Type (Solid | Platform | Spike | Empty).
+
+playerstate = PlayerState.Idle.
+
+# no shadowing, so no state = state
+player = {pos = Vec2 0.0 0.0, vel = Vec2 0.0 0.0, state = playerstate, health = 100, facing = 1}.
+
+tile = TileKind.Platform.
+
+# ?? can just be used in place almost anywhere to signal "not implemented" like a hole
+level = {tiles = ??, width = ??, height = ??}.
+
+init = {player, tile, level, gamestate}.
+
+# use std.mvu/3
+main = std.mvu init update view.
