@@ -1,0 +1,15 @@
+# All new types are declared using = Type ...
+FileState = Type (Closed | Open | EOF).
+
+# driver protocol — external impl satisfies this sig
+# v1
+# The Type keyword does most of the work, thats why : is not used in the body at all
+FileSig = Type {
+  open  = Path -> (FileHandle, FileState.Open),
+  read  = (FileHandle, FileState.Open) -> (Bytes, FileState),
+  write = (FileHandle, FileState.Open) -> (Unit, FileState.Open),
+  seek  = (FileHandle, FileState.Open) -> (Unit, FileState.Open),
+  close = (FileHandle, FileState.Open) -> (Unit, FileState.Closed)
+}.
+
+iso Tree List = (tree_to_list, list_to_tree).
