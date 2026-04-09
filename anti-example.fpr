@@ -35,3 +35,28 @@ f = if (x) y else z.
 
 # we dont have tuple function calls we use juxtaposition f x
 f = f(x).
+
+# we dont have forward refs
+f x = g x. # f cant reference g after its definition, it just will result in immediate semantic error during parsing
+g x = x + 1.
+
+# we dont have mutual recursion
+even x = odd (x - 1). # doesnt work anyway, references something after itself. Would need fix combinator
+odd x = even (x - 1).
+
+# does not exist, must use fix f function, preferrably without a lambda
+factorial x = x * (factorial (x - 1)).
+
+# MISCONCEPTION 1 : lambda function behavior
+f x =
+  f' = fn x => x + 1, # this is not a closure, its just lambda lifted to a top level function. It is not inlined either
+  f' x.
+
+# MISCONCEPTION 2 : guard and pattern matching behavior
+# THESE ARE NOT SEPARATE THINGS. They are literally just sugar for if - then - else expressions
+f x | x > 0 = x - 1
+    | x < 0 = x + 1
+    | otherwise = x.
+
+f (x :: xs) = xs. # THIS IS NOT ITS OWN THING, this basically just checks the tag = cons and then binds two local vars x and xs
+# basically think of it as f _list = x <- _list.x, xs <- _list.xs, xs. # the . is the access/2 operator that handles the binding BTS

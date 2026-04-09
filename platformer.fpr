@@ -28,6 +28,7 @@ Level = Type {tiles = List Tile, width = Int, height = Int}.
 
 GameState : Type (Playing | Paused | GameOver | Win).
 
+# Note these all just get inlined
 Game = Type {
   player = Player,
   level  = Level,

@@ -30,4 +30,6 @@ If this fails to unify or evaluate, then type error.
 PE exists only in REI. In FP-RISC everything is unboxed and on the stack and copied. Types are resolved statically because they can. Type signatures are optional and just get unified at compile time with the single pass compilation. Type variables technically do exist but also don't. They just get monomorphized for easy compilation.
 Local bindings do not need type signatures. Unused polymorphic functions just don't get instantiated.
 
-In FP-RISC everything is linear. There is no forward references or mutual recursion.
+In FP-RISC everything is sequential. There are no forward references or mutual recursion.
+
+IMPORTANT: everything basically just desugars to things like regular basic blocks, branches, data. There are no real heap allocated thunks or anything. Except maybe explicit Box types that do do that.
