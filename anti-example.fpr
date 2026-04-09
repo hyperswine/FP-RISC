@@ -1,0 +1,37 @@
+# These things dont exist or have the wrong syntax and semantics
+
+# NO IMPLICIT RECURSION
+x = not x.
+
+# NEEDS PERIOD TERMINATOR
+y = [1, 2, 3]
+
+# WRONG LAMBDA FUNCTION SYNTAX. needs to be fn x => x + 1
+f = \x -> x + 1.
+
+# DO NOT HAVE LAMBDA CASE
+f x = \case of True -> x | False -> x + 1.
+
+# DO NOT HAVE MANY OF THE FUNCTIONS YOU TYPICALLY EXPECT
+x = concatMap f xs. # there is no concatMap
+
+# USE List.map or std.map !! not map. There is no prelude stuff
+y = map f xs.
+
+# use print ! first bind print to std.print
+y = putStrLn "hi".
+
+# we dont have data defs, just x = Type (Y | Z z).
+data x = Y | Z x.
+
+# We dont have implicit recursive types, must use the fix combinator
+X = Type (A | Y X).
+
+# We use :: for cons not :
+f (x : xs) = map f xs.
+
+# we use if x then y else z
+f = if (x) y else z.
+
+# we dont have tuple function calls we use juxtaposition f x
+f = f(x).
