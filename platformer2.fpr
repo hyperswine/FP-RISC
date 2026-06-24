@@ -1,11 +1,15 @@
 # ── modules ──────────────────────────────────────────────
-std    = use "fpr-official@std.v1".
-math   = use "fpr-official@math.v1".
-vec    = use "fpr-official@vec2.v1".
-input  = use "fpr-official@input.v1".
-render = use "fpr-official@render.v1".
+# no hash means use the lifted version
 
-print = std.print.
+std    = use "fprofficial@std".
+math   = use "fprofficial@math".
+vec    = use "fprofficial@vec2".
+input  = use "fprofficial@input".
+render = use "fprofficial@render".
+render_driver = use render.sdl;
+input_driver  = use input.driver;
+
+println = std.println.
 
 # ── types ─────────────────────────────────────────────────
 Vec2  = Type (Num, Num). # Num is the default type encompassing every numeric type
@@ -146,16 +150,15 @@ tick game input_driver render_driver
       Game player game.level camera gstate ((+) game.tick 1).
 
 main =
-  render_driver <- use "fpr-official@sdl.v1";
-  input_driver  <- use "fpr-official@input.v1";
+
   level         <- load_level "level01";
   start_player  <- Player (Vec2 32.0 32.0) (Vec2 0.0 0.0) PlayerState.Idle 3 1;
   init_game     <- Game start_player level (Vec2 0.0 0.0) GameState.Playing 0;
   loop init_game input_driver render_driver.
 
 loop game input_driver render_driver
-  | game.state == GameState.GameOver = print "Game Over"
-  | game.state == GameState.Win      = print "You Win".
+  | game.state == GameState.GameOver = println "Game Over"
+  | game.state == GameState.Win      = println "You Win"
   | otherwise =
       next <- tick game input_driver render_driver;
       loop next input_driver render_driver.
