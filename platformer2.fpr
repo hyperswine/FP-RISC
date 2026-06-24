@@ -6,8 +6,8 @@ math   = use "fprofficial@math".
 vec    = use "fprofficial@vec2".
 input  = use "fprofficial@input".
 render = use "fprofficial@render".
-render_driver = use render.sdl;
-input_driver  = use input.driver;
+render_driver = use render.sdl.
+input_driver  = use input.driver.
 
 println = std.println.
 
@@ -17,6 +17,7 @@ PlayerState : Type (Idle | Running | Jumping | Falling | Dead).
 TileKind  : Type (Solid | Platform | Spike | Empty).
 
 # {...} is sugar for Record (...)
+# No trailing commas
 
 Player = Type {
   pos : Vec2,
@@ -63,8 +64,8 @@ jump_vel     = -8.0.
 apply_gravity vel | vel.y < max_fall_vel = ny <- (+) vel.y gravity; Vec2 vel.x ny.
 apply_gravity vel = vel.
 
-# Must use (op) for prefix form for any/2
-apply_input vel keys | any ((==) Jump) keys, grounded vel = Vec2 vel.x jump_vel.
+# Must use (op) for prefix form for any/2, and/2 is a binary operator
+apply_input vel keys | any ((==) Jump) keys and grounded vel = Vec2 vel.x jump_vel.
 apply_input vel keys | any ((==) Left) keys = Vec2 (negate move_speed) vel.y.
 apply_input vel keys | any ((==) Right) keys = Vec2 move_speed vel.y.
 apply_input vel _ = vel.
@@ -105,7 +106,9 @@ derive_facing keys _ | any ((==) Right) keys = 1.
 derive_facing _ facing = facing.
 
 # ── camera ─────────────────────────────────────────────────
-update_camera camera player = target <- vec.sub player.pos (Vec2 160.0 120.0), vec.lerp camera target 0.1.
+update_camera camera player =
+  target <- vec.sub player.pos (Vec2 160.0 120.0);
+  vec.lerp camera target 0.1.
 
 # ── game state ─────────────────────────────────────────────
 check_win player level = overlaps player.pos level.goal.
