@@ -33,3 +33,10 @@ Local bindings do not need type signatures. Unused polymorphic functions just do
 In FP-RISC everything is sequential. There are no forward references or mutual recursion.
 
 IMPORTANT: everything basically just desugars to things like regular basic blocks, branches, data. There are no real heap allocated thunks or anything. Except maybe explicit Box types that do do that.
+
+---------
+
+use/1
+
+It is meant to be used at the top to bind a name so the access/2 `.` works. Was meant to be loaded as dynamic and accessed using the ABI.
+But in FP-RISC the simpler way is binding the thing.

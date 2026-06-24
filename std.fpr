@@ -24,12 +24,12 @@ Maybe a = Type (Nothing | Just a).
 just    x = Maybe.Just x.
 nothing   = Maybe.Nothing.
 
-is_just  (Maybe.Just _)  = True.
-is_just  Maybe.Nothing   = False.
-is_nothing m             = not (is_just m).
+is_just  (Maybe.Just _) = True.
+is_just  Maybe.Nothing  = False.
+is_nothing m            = not (is_just m).
 
-from_maybe _ (Maybe.Just x)  = x.
-from_maybe d Maybe.Nothing   = d.
+from_maybe _ (Maybe.Just x) = x.
+from_maybe d Maybe.Nothing  = d.
 
 maybe f _ (Maybe.Just x) = f x.
 maybe _ d Maybe.Nothing  = d.
@@ -72,12 +72,12 @@ map_err _ (Result.Ok  x) = Result.Ok x.
 # ── List ──────────────────────────────────────────────────
 # Runtime primitives: cons, head, tail, nil, is_nil, length, append
 
-map f xs     | is_nil xs = nil.
-map f xs     = cons (f (head xs)) (map f (tail xs)).
+map f xs | is_nil xs = nil.
+map f xs = cons (f (head xs)) (map f (tail xs)).
 
-filter pred xs | is_nil xs              = nil.
-filter pred xs | pred (head xs)         = cons (head xs) (filter pred (tail xs)).
-filter pred xs                          = filter pred (tail xs).
+filter pred xs | is_nil xs      = nil.
+filter pred xs | pred (head xs) = cons (head xs) (filter pred (tail xs)).
+filter pred xs                  = filter pred (tail xs).
 
 fold f acc xs | is_nil xs = acc.
 fold f acc xs             = fold f (f acc (head xs)) (tail xs).
@@ -89,9 +89,9 @@ any pred xs | is_nil xs        = False.
 any pred xs | pred (head xs)   = True.
 any pred xs                    = any pred (tail xs).
 
-all pred xs | is_nil xs          = True.
+all pred xs | is_nil xs            = True.
 all pred xs | not (pred (head xs)) = False.
-all pred xs                      = all pred (tail xs).
+all pred xs                        = all pred (tail xs).
 
 find pred xs | is_nil xs          = Maybe.Nothing.
 find pred xs | pred (head xs)     = Maybe.Just (head xs).
@@ -113,7 +113,7 @@ drop 0 xs = xs.
 drop _ xs | is_nil xs = nil.
 drop n xs             = drop ((-) n 1) (tail xs).
 
-reverse xs = fold (fun acc x -> cons x acc) nil xs.
+reverse xs = fold (fn acc x -> cons x acc) nil xs.
 
 concat xss = fold append nil xss.
 
@@ -134,8 +134,8 @@ init_list xs                    = cons (head xs) (init_list (tail xs)).
 sum  xs = fold (+) 0 xs.
 product xs = fold (*) 1 xs.
 
-maximum xs = fold (fun a b -> if a > b then a else b) (head xs) (tail xs).
-minimum xs = fold (fun a b -> if a < b then a else b) (head xs) (tail xs).
+maximum xs = fold (fn a b => if a > b then a else b) (head xs) (tail xs).
+minimum xs = fold (fn a b => if a < b then a else b) (head xs) (tail xs).
 
 range lo hi | lo >= hi = nil.
 range lo hi            = cons lo (range ((+) lo 1) hi).
@@ -148,7 +148,7 @@ enumerate xs = zip (range 0 (length xs)) xs.
 # partition : (a -> Bool) -> List a -> (List a, List a)
 partition pred xs =
   yes <- filter pred xs,
-  no  <- filter (fun x -> not (pred x)) xs,
+  no  <- filter (fn x => not (pred x)) xs,
   (yes, no).
 
 unzip pairs =
@@ -156,17 +156,17 @@ unzip pairs =
   bs  <- map snd pairs,
   (as_, bs).
 
-flat xs = flat_map (fun x -> x) xs.
+flat xs = flat_map (fn x => x) xs.
 
 sort_by key xs | is_nil xs = nil.
 sort_by key xs =
   pivot  <- head xs,
   rest   <- tail xs,
-  less   <- filter (fun x -> key x < key pivot) rest,
-  greater <- filter (fun x -> key x >= key pivot) rest,
+  less   <- filter (fn x => key x < key pivot) rest,
+  greater <- filter (fn x => key x >= key pivot) rest,
   append (sort_by key less) (cons pivot (sort_by key greater)).
 
-sort xs = sort_by (fun x -> x) xs.
+sort xs = sort_by (fn x => x) xs.
 
 
 # ── Tuple helpers ─────────────────────────────────────────
@@ -198,14 +198,14 @@ bool_to_int False = 0.
 
 # ── Numeric utilities ─────────────────────────────────────
 abs x | x < 0  = negate x.
-abs x           = x.
+abs x          = x.
 
 clamp lo hi x = max lo (min hi x).
 clamp_0 x     = max 0 x.
 
 sign x | x > 0  =  1.
 sign x | x < 0  = -1.
-sign _           =  0.
+sign _          =  0.
 
 lerp a b t = (+) a ((*) ((-) b a) t).
 
@@ -232,9 +232,9 @@ to_int   x = int_of_float x.   # truncates
 #   str_contains, str_starts_with, str_ends_with, int_to_str,
 #   float_to_str, str_to_int, str_to_float.
 
+# All string literals mean type `String`, the constructor is just the "" thing itself. Though you can use String x to match it
 str_join sep xs | is_nil xs = "".
-str_join sep xs =
-  fold (fun acc s -> str_concat acc (str_concat sep s)) (head xs) (tail xs).
+str_join sep xs = fold (fn acc s => str_concat acc (str_concat sep s)) (head xs) (tail xs).
 
 str_lines   s = str_split "\n" s.
 str_words   s = str_split " "  s.
@@ -321,7 +321,7 @@ Sub.batch subs    = {tag = "batch",    payload = subs}.
 mvu = std_mvu.   # runtime built-in
 
 
-# ── Function combinators ──────────────────────────────────
+# ── fnction combinators ──────────────────────────────────
 id      x   = x.
 const   x _ = x.
 flip    f a b = f b a.
@@ -356,7 +356,7 @@ tree_member cmp x (Node v l r)
 tree_to_list Leaf              = nil.
 tree_to_list (Node v l r)      = append (tree_to_list l) (cons v (tree_to_list r)).
 
-list_to_tree cmp xs = fold (fun t x -> tree_insert cmp x t) Leaf xs.
+list_to_tree cmp xs = fold (fn t x -> tree_insert cmp x t) Leaf xs.
 
 iso Tree List = (tree_to_list, list_to_tree).
 
@@ -366,8 +366,8 @@ Dict k v = Type (Tree (k, v)).
 
 dict_empty        = Leaf.
 dict_insert k v d = tree_insert (on compare fst) (k, v) d.
-dict_lookup k d   = map_maybe snd (find (fun (k2, _) -> k == k2) (tree_to_list d)).
-dict_delete k d   = list_to_tree (on compare fst) (filter (fun (k2, _) -> k2 != k) (tree_to_list d)).
+dict_lookup k d   = map_maybe snd (find (fn (k2, _) -> k == k2) (tree_to_list d)).
+dict_delete k d   = list_to_tree (on compare fst) (filter (fn (k2, _) -> k2 != k) (tree_to_list d)).
 dict_keys   d     = map fst (tree_to_list d).
 dict_values d     = map snd (tree_to_list d).
 dict_to_list d    = tree_to_list d.
@@ -384,9 +384,9 @@ set_insert x s   = tree_insert compare x s.
 set_member x s   = tree_member compare x s.
 set_to_list s    = tree_to_list s.
 set_from_list xs = list_to_tree compare xs.
-set_union s1 s2  = fold (fun s x -> set_insert x s) s1 (set_to_list s2).
-set_inter s1 s2  = list_to_tree compare (filter (fun x -> set_member x s2) (set_to_list s1)).
-set_diff  s1 s2  = list_to_tree compare (filter (fun x -> not (set_member x s2)) (set_to_list s1)).
+set_union s1 s2  = fold (fn s x => set_insert x s) s1 (set_to_list s2).
+set_inter s1 s2  = list_to_tree compare (filter (fn x => set_member x s2) (set_to_list s1)).
+set_diff  s1 s2  = list_to_tree compare (filter (fn x => not (set_member x s2)) (set_to_list s1)).
 
 
 # ── Queue (pair-of-lists) ─────────────────────────────────
