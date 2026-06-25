@@ -12,7 +12,7 @@ input_driver  = use input.driver.
 println = std.println.
 
 # ── types ─────────────────────────────────────────────────
-Vec2  = Type (Num, Num). # Num is the default type encompassing every numeric type
+Vec2  = Type (Num, Num). # Num is the default type encompassing every numeric type. Not the same as Vec2 = (Num, Num) which would alias it instead. This is its own unique type
 PlayerState : Type (Idle | Running | Jumping | Falling | Dead).
 TileKind  : Type (Solid | Platform | Spike | Empty).
 

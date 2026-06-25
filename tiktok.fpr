@@ -1,0 +1,14 @@
+std    = use "fprofficial@std".
+math   = use "fprofficial@math".
+vec    = use "fprofficial@vec2".
+input  = use "fprofficial@input".
+render = use "fprofficial@render".
+render_driver = use render.sdl.
+input_driver  = use input.driver.
+
+println = std.println.
+
+# Scroll, watch video, like, save, profiles, videos, comments, threads per comment, replies, reactions, watch views
+# Recommendation algorithm
+
+# virtual scroller, scroll down to go to next page. Pagination lazy, have 20-100 cached based on scroll rate
