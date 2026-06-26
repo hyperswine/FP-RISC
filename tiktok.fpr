@@ -12,3 +12,84 @@ println = std.println.
 # Recommendation algorithm
 
 # virtual scroller, scroll down to go to next page. Pagination lazy, have 20-100 cached based on scroll rate
+
+# state machine
+# Video ID, Video URL, Video Title, Video Description, Video Tags, Video Category, Video Duration, Video Upload Date, Video Views, Video Likes, Video Dislikes, Video Comments Count, Video Shares Count, Video Author ID, Video Author Name, Video Author Profile Picture URL
+
+commentui = div [] [
+    div [class "comment"] [
+        img [src "profile_picture_url", class "profile-picture"],
+        div [class "comment-content"] [
+            span [class "comment-author"] ["Author Name"],
+            span [class "comment-text"] ["Comment text goes here."],
+            div [class "comment-actions"] [
+                button [class "like-button"] ["Like"],
+                button [class "reply-button"] ["Reply"]
+            ]
+        ]
+    ]
+].
+
+videoui = div [] [
+    video [src "video_url", controls true, autoplay true, class "video-player"],
+    div [class "video-info"] [
+        h1 [class "video-title"] ["Video Title"],
+        p [class "video-description"] ["Video Description"],
+        div [class "video-stats"] [
+            span [class "video-views"] ["Views: 1000"],
+            span [class "video-likes"] ["Likes: 500"],
+            span [class "video-comments"] ["Comments: 200"]
+        ]
+    ],
+    div [class "comments-section"] [
+        h2 ["Comments"],
+        commentui
+    ]
+].
+
+# inside video ui update
+
+update : Msg -> Model -> (Model, Cmd Msg).
+update msg model =
+    case msg of
+        ScrollDown ->
+            let
+                newModel = model.scrollDown
+            in
+                (newModel, Cmd.none)
+
+        LikeVideo videoId ->
+            let
+                newModel = over model.videos (List.map (\video -> if video.id == videoId then { video | likes = video.likes + 1 } else video))
+            in
+                (newModel, Cmd.none)
+
+        SaveVideo videoId ->
+            let
+                newModel = over model.videos (List.map (\video -> if video.id == videoId then { video | saved = True } else video))
+            in
+                (newModel, Cmd.none)
+
+        ViewProfile authorId ->
+            let
+                newModel = model.viewProfile authorId
+            in
+                (newModel, Cmd.none)
+
+        PostComment videoId commentText ->
+            let
+                newModel = model.postComment (videoId, commentText)
+            in
+                (newModel, Cmd.none)
+
+        ReplyToComment commentId replyText ->
+            let
+                newModel = model.replyToComment (commentId, replyText)
+            in
+                (newModel, Cmd.none)
+
+        ReactToComment commentId reactionType ->
+            let
+                newModel = model.reactToComment (commentId, reactionType)
+            in
+                (newModel, Cmd.none).
